@@ -1,4 +1,4 @@
-import { useState } from "react";  
+import { useState, memo } from "react";  
 
 const C = {
   primary: "#5b21b6", primaryLight: "#7c3aed", primaryDark: "#3b0764",
@@ -218,7 +218,7 @@ function Navbar({ page, setPage }) {
 
       {/* Secondary Nav Bar */}
       <div style={{ background: "#1a0533", borderBottom: "1px solid rgba(167,139,250,0.25)", overflowX: "auto" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 8px", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "max-content", margin: "0 auto" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 8px", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "max-content" }}>
           {links.map(l => (
             <button key={l.id} onClick={() => setPage(l.id)} style={{
               background: page === l.id ? "rgba(167,139,250,0.15)" : "none",
@@ -357,6 +357,24 @@ function Footer({ setPage }) {
   );
 }
 
+const Field = memo(function Field({ label, prefix, suffix, optional, fieldKey, error, values, handleChange, inp }) {
+  return (
+    <div>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <span style={{ color: C.textMid, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>{label}</span>
+        {optional && <span style={{ background: "#f1f5f9", color: C.textLight, fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 20, textTransform: "uppercase" }}>Optional</span>}
+        {error && <span style={{ color: C.red, fontSize: 10, fontWeight: 600 }}>Required</span>}
+      </label>
+      <div style={{ position: "relative" }}>
+        {prefix && <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: C.textLight, fontSize: 15, fontWeight: 600, pointerEvents: "none" }}>{prefix}</span>}
+        <input type="number" min="0" max={fieldKey === "returnRate" ? "99" : undefined} value={values[fieldKey]} onChange={e => handleChange(fieldKey, e.target.value)}
+          style={{ ...inp(error), padding: `13px ${suffix ? "44px" : "14px"} 13px ${prefix ? "32px" : "14px"}` }} />
+        {suffix && <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: C.textLight, fontSize: 13, fontWeight: 600, pointerEvents: "none" }}>{suffix}</span>}
+      </div>
+    </div>
+  );
+});
+
 function Calculator() {
   const [values, setValues] = useState(defaultValues);
   const [results, setResults] = useState(null);
@@ -381,27 +399,58 @@ function Calculator() {
     const required = ["targetIncome", "productCost", "packagingCost", "shippingCharge", "returnRate", "gstRate", "profitMargin"];
     const newErrors = {};
     required.forEach(k => { if (values[k] === "" || isNaN(Number(values[k]))) newErrors[k] = true; });
-    if (Object.keys(newErrors).length) { setErrors(newErrors); return; }
+
+    const returnRateNum = Number(values.returnRate);
+    if (Number.isFinite(returnRateNum) && returnRateNum >= 100) {
+      newErrors.returnRate = true;
+    }
+
+    if (Object.keys(newErrors).length) {
+      setErrors(newErrors);
+      if (newErrors.returnRate && returnRateNum >= 100) {
+        alert("Return Rate 100% বা তার বেশি হতে পারে না। 0 থেকে 99 এর মধ্যে দিন।");
+      }
+      return;
+    }
+
     const v = Object.fromEntries(Object.entries(values).map(([k, val]) => [k, val === "" ? 0 : parseFloat(val)]));
     const costBeforeGst = (v.productCost + v.packagingCost + v.shippingCharge) / (1 - v.returnRate / 100);
     const totalCost = costBeforeGst * (1 + v.gstRate / 100);
     const finalCost = totalCost + (totalCost * v.commission / 100) + v.otherExpenses;
     const sellPrice = finalCost * (1 + v.profitMargin / 100);
     const profitPerOrder = sellPrice - finalCost;
+
+    if (!Number.isFinite(profitPerOrder) || profitPerOrder <= 0) {
+      setErrors(e => ({ ...e, profitMargin: true }));
+      alert("Profit Margin 0% বা negative হলে order target calculate করা যাবে না। Profit Margin 1% বা তার বেশি দিন।");
+      setResults(null);
+      return;
+    }
+
     const unitsNeeded = v.targetIncome / profitPerOrder;
-    const dailyOrders = Math.round(unitsNeeded / 30);
+    const dailyOrders = Math.max(1, Math.round(unitsNeeded / 30));
     const minCapital = (v.productCost + v.packagingCost + v.shippingCharge) * dailyOrders * 7 + v.otherExpenses;
-    setResults({ finalCost, sellPrice, profitPerOrder, unitsNeeded: Math.round(unitsNeeded), dailyOrders, minCapital });
+    setResults({ finalCost, sellPrice, profitPerOrder, unitsNeeded: Math.ceil(unitsNeeded), dailyOrders, minCapital });
   };
 
   const reset = () => { setValues(defaultValues); setResults(null); setErrors({}); setSelectedPlatform(""); };
   const fmt = n => "₹" + Math.round(n).toLocaleString("en-IN");
   const activePlatform = PLATFORMS.find(p => p.name === selectedPlatform);
-  const emptyResults = !results;
-
   const buildShareText = () => {
-    const platform = selectedPlatform ? `🏪 Platform: ${selectedPlatform}\n` : "";
-    return `📊 Income Goal Calculator Result\n\n🎯 Monthly Target Income: ₹${parseFloat(values.targetIncome).toLocaleString()}\n${platform}💰 Selling Price: ₹${results?.sellPrice.toFixed(2)}\n📦 Total Cost: ₹${results?.finalCost.toFixed(2)}\n✅ Profit/Order: ₹${results?.profitPerOrder.toFixed(2)}\n📦 Orders: ${results?.unitsNeeded}/month (${results?.dailyOrders}/day)\n💰 Min Capital: ₹${results?.minCapital.toFixed(0)}\n\nhttps://income-goal-calculator-nu.vercel.app`;
+    if (!results) return "";
+    const targetIncome = Number(values.targetIncome) || 0;
+    const platform = selectedPlatform ? `🏪 Platform: ${selectedPlatform}
+` : "";
+    return `📊 Income Goal Calculator Result
+
+🎯 Monthly Target Income: ₹${targetIncome.toLocaleString("en-IN")}
+${platform}💰 Selling Price: ₹${results.sellPrice.toFixed(2)}
+📦 Total Cost: ₹${results.finalCost.toFixed(2)}
+✅ Profit/Order: ₹${results.profitPerOrder.toFixed(2)}
+📦 Orders: ${results.unitsNeeded}/month (${results.dailyOrders}/day)
+💰 Min Capital: ₹${results.minCapital.toFixed(0)}
+
+https://income-goal-calculator-nu.vercel.app`;
   };
 
   const inp = (err) => ({
@@ -410,22 +459,6 @@ function Calculator() {
     color: C.text, fontSize: 15, fontWeight: 500, outline: "none",
     transition: "all 0.2s", boxSizing: "border-box",
   });
-
-  const Field = ({ label, prefix, suffix, optional, fieldKey, error }) => (
-    <div>
-      <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-        <span style={{ color: C.textMid, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>{label}</span>
-        {optional && <span style={{ background: "#f1f5f9", color: C.textLight, fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 20, textTransform: "uppercase" }}>Optional</span>}
-        {error && <span style={{ color: C.red, fontSize: 10, fontWeight: 600 }}>Required</span>}
-      </label>
-      <div style={{ position: "relative" }}>
-        {prefix && <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: C.textLight, fontSize: 15, fontWeight: 600, pointerEvents: "none" }}>{prefix}</span>}
-        <input type="number" min="0" value={values[fieldKey]} onChange={e => handleChange(fieldKey, e.target.value)}
-          style={{ ...inp(error), padding: `13px ${suffix ? "44px" : "14px"} 13px ${prefix ? "32px" : "14px"}` }} />
-        {suffix && <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: C.textLight, fontSize: 13, fontWeight: 600, pointerEvents: "none" }}>{suffix}</span>}
-      </div>
-    </div>
-  );
 
   const ResCard = ({ label, value, highlight, green, dimmed }) => (
     <div style={{
@@ -444,13 +477,13 @@ function Calculator() {
     <section style={{ maxWidth: 520, margin: "0 auto", padding: "0 16px 40px" }}>
       <div style={{ background: C.white, borderRadius: 20, padding: "28px 24px", border: `1px solid ${C.border}`, boxShadow: "0 4px 24px rgba(0,0,0,0.06)", marginBottom: 16 }}>
         <div style={{ display: "grid", gap: 14 }}>
-          <Field label="Monthly Target Income" prefix="₹" fieldKey="targetIncome" error={errors.targetIncome} />
-          <Field label="Per Unit Raw Cost" prefix="₹" fieldKey="productCost" error={errors.productCost} />
-          <Field label="Packaging Cost" prefix="₹" fieldKey="packagingCost" error={errors.packagingCost} />
-          <Field label="Shipping Charge" prefix="₹" fieldKey="shippingCharge" error={errors.shippingCharge} />
-          <Field label="Return Rate" suffix="%" fieldKey="returnRate" error={errors.returnRate} />
-          <Field label="GST Rate" suffix="%" fieldKey="gstRate" error={errors.gstRate} />
-          <Field label="Profit Margin" suffix="%" fieldKey="profitMargin" error={errors.profitMargin} />
+          <Field label="Monthly Target Income" prefix="₹" fieldKey="targetIncome" error={errors.targetIncome} values={values} handleChange={handleChange} inp={inp} />
+          <Field label="Per Unit Raw Cost" prefix="₹" fieldKey="productCost" error={errors.productCost} values={values} handleChange={handleChange} inp={inp} />
+          <Field label="Packaging Cost" prefix="₹" fieldKey="packagingCost" error={errors.packagingCost} values={values} handleChange={handleChange} inp={inp} />
+          <Field label="Shipping Charge" prefix="₹" fieldKey="shippingCharge" error={errors.shippingCharge} values={values} handleChange={handleChange} inp={inp} />
+          <Field label="Return Rate" suffix="%" fieldKey="returnRate" error={errors.returnRate} values={values} handleChange={handleChange} inp={inp} />
+          <Field label="GST Rate" suffix="%" fieldKey="gstRate" error={errors.gstRate} values={values} handleChange={handleChange} inp={inp} />
+          <Field label="Profit Margin" suffix="%" fieldKey="profitMargin" error={errors.profitMargin} values={values} handleChange={handleChange} inp={inp} />
           <div style={{ height: 1, background: `linear-gradient(90deg, transparent, ${C.primaryLight}40, transparent)`, margin: "4px 0" }} />
           <div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
@@ -543,7 +576,8 @@ function Calculator() {
               const commRate = parseFloat(values.commission) || 0;
               const other = parseFloat(values.otherExpenses) || 0;
               const retRate = parseFloat(values.returnRate) || 0;
-              const baseCost = (pc + pkg + ship) / (1 - retRate / 100) || (pc + pkg + ship);
+              const safeRetRate = retRate >= 100 ? 99 : retRate;
+              const baseCost = (pc + pkg + ship) / (1 - safeRetRate / 100) || (pc + pkg + ship);
               const gstAmt = results ? (baseCost * gstRate / 100) : 0;
               const totalBeforeComm = baseCost + gstAmt;
               const commAmt = results ? (totalBeforeComm * commRate / 100) : 0;
@@ -555,6 +589,7 @@ function Calculator() {
                 { label: `GST (${gstRate}%)`, value: gstAmt },
                 { label: `Commission (${commRate}%)`, value: commAmt },
                 { label: "Return Cost Buffer", value: retBuffer },
+                { label: "Other Expenses", value: other },
               ];
               return items.map((item, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${C.border}` }}>
@@ -1017,6 +1052,21 @@ function Tools({ setPage }) {
 function Contact() {
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
   const [sent, setSent] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  const handleContactSubmit = () => {
+    const emailOk = /\S+@\S+\.\S+/.test(form.email);
+    if (!form.name.trim() || !form.email.trim() || !form.subject.trim() || !form.message.trim()) {
+      setFormError("সব field পূরণ করুন।");
+      return;
+    }
+    if (!emailOk) {
+      setFormError("Valid email address দিন।");
+      return;
+    }
+    setFormError("");
+    setSent(true);
+  };
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "60px 20px" }}>
@@ -1046,23 +1096,24 @@ function Contact() {
           <div style={{ textAlign: "center", padding: "40px 20px" }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
             <h3 style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 8 }}>Message Sent!</h3>
-            <p style={{ color: C.textMid }}>Thank you! We'll get back to you within 24-48 hours.</p>
+            <p style={{ color: C.textMid }}>Thanks! This demo form does not send email yet. Please email us directly at rajarshimajumder50@gmail.com.</p>
           </div>
         ) : (
           <div style={{ display: "grid", gap: 16 }}>
             {[{ label: "Your Name", key: "name", ph: "Rajarshi Majumdar" }, { label: "Email", key: "email", ph: "you@example.com" }, { label: "Subject", key: "subject", ph: "Question about the calculator" }].map(f => (
               <div key={f.key}>
                 <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.textMid, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{f.label}</label>
-                <input value={form[f.key]} onChange={e => setForm(v => ({ ...v, [f.key]: e.target.value }))} placeholder={f.ph}
+                <input type={f.key === "email" ? "email" : "text"} value={form[f.key]} onChange={e => { setSent(false); setFormError(""); setForm(v => ({ ...v, [f.key]: e.target.value })); }} placeholder={f.ph}
                   style={{ width: "100%", padding: "12px 16px", border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
               </div>
             ))}
             <div>
               <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.textMid, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Message</label>
-              <textarea value={form.message} onChange={e => setForm(v => ({ ...v, message: e.target.value }))} placeholder="Write your message here..." rows={5}
+              <textarea value={form.message} onChange={e => { setSent(false); setFormError(""); setForm(v => ({ ...v, message: e.target.value })); }} placeholder="Write your message here..." rows={5}
                 style={{ width: "100%", padding: "12px 16px", border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 14, outline: "none", resize: "vertical", boxSizing: "border-box" }} />
             </div>
-            <button onClick={() => setSent(true)} style={{ background: `linear-gradient(135deg, ${C.primary}, ${C.primaryLight})`, border: "none", borderRadius: 12, padding: "14px 28px", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+            {formError && <p style={{ color: C.red, fontSize: 13, fontWeight: 600 }}>❌ {formError}</p>}
+            <button onClick={handleContactSubmit} style={{ background: `linear-gradient(135deg, ${C.primary}, ${C.primaryLight})`, border: "none", borderRadius: 12, padding: "14px 28px", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
               Send Message →
             </button>
           </div>
@@ -1118,7 +1169,7 @@ const disclaimerSections = [
 ];
 
 // ===================== ADMIN DASHBOARD =====================
-const ADMIN_PASSWORD = "admin@yourprice2025";
+const ADMIN_PASSWORD = (import.meta.env.VITE_ADMIN_PASSWORD || "").trim();
 
 function AdminDashboard({ setPage }) {
   const [authed, setAuthed] = useState(false);
@@ -1128,7 +1179,11 @@ function AdminDashboard({ setPage }) {
   const [search, setSearch] = useState("");
 
   const handleAdminLogin = () => {
-    if (pw === ADMIN_PASSWORD) {
+    if (!ADMIN_PASSWORD) {
+      setPwErr("Admin password is not configured. Add a non-empty VITE_ADMIN_PASSWORD in Vercel environment variables.");
+      return;
+    }
+    if (pw.trim() === ADMIN_PASSWORD) {
       setAuthed(true);
       setUsers(getUsers());
     } else {
@@ -1153,7 +1208,7 @@ function AdminDashboard({ setPage }) {
         <div style={{ background: C.white, borderRadius: 22, padding: "40px 32px", maxWidth: 380, width: "100%", border: `1px solid ${C.border}`, boxShadow: "0 8px 32px rgba(0,0,0,0.08)", textAlign: "center" }}>
           <div style={{ width: 60, height: 60, borderRadius: 16, background: "linear-gradient(135deg, #0f0a1e, #3b0764)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 26 }}>🛡️</div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 6 }}>Admin Panel</h1>
-          <p style={{ fontSize: 13, color: C.textMid, marginBottom: 24 }}>Restricted access. Password required.</p>
+          <p style={{ fontSize: 13, color: C.textMid, marginBottom: 24 }}>Restricted access. Set <strong>VITE_ADMIN_PASSWORD</strong> in Vercel environment variables.</p>
           <div style={{ display: "grid", gap: 12 }}>
             <input type="password" placeholder="Admin password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdminLogin()}
               style={{ width: "100%", padding: "13px 16px", border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 14, outline: "none", boxSizing: "border-box", textAlign: "center" }} />
