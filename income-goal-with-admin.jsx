@@ -39,7 +39,7 @@ function clearLoggedIn() {
 }
 // =========================================================
 
-function Navbar({ page, setPage }) {
+function Navbar({ page, setPage, onCalcClick }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dotOpen, setDotOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -91,15 +91,6 @@ function Navbar({ page, setPage }) {
     { id: "about", label: "About" },
   ];
 
-  const goToCalculator = () => {
-    setPage("home");
-    setMobileOpen(false);
-    setDotOpen(false);
-    setTimeout(() => {
-      document.getElementById("calc")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 150);
-  };
-
   return (
     <>
       <nav style={{ background: C.white, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
@@ -122,7 +113,7 @@ function Navbar({ page, setPage }) {
 
           {/* Desktop Nav - only show Calculate button + 3dot */}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }} className="nav-desktop">
-            <button onClick={goToCalculator} style={{
+            <button onClick={onCalcClick} style={{
               background: `linear-gradient(135deg, ${C.primary}, ${C.primaryLight})`,
               border: "none", borderRadius: 10, padding: "8px 16px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
             }}>Calculate Free →</button>
@@ -313,7 +304,7 @@ function Navbar({ page, setPage }) {
   );
 }
 
-function Footer({ setPage }) {
+function Footer({ setPage, onCalcClick }) {
   const links = [
     { id: "calc", label: "Calculate Free" },
     { id: "about", label: "About" }, { id: "blog", label: "Blog" },
@@ -321,18 +312,6 @@ function Footer({ setPage }) {
     { id: "contact", label: "Contact" }, { id: "privacy", label: "Privacy Policy" },
     { id: "terms", label: "Terms" }, { id: "disclaimer", label: "Disclaimer" },
   ];
-
-  const handleFooterClick = (id) => {
-    if (id === "calc") {
-      setPage("home");
-      setTimeout(() => {
-        document.getElementById("calc")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 150);
-      return;
-    }
-    setPage(id);
-  };
-
   return (
     <footer style={{ background: C.text, color: "#fff", padding: "40px 20px 24px", marginTop: 80 }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
@@ -358,7 +337,15 @@ function Footer({ setPage }) {
           <div>
             <p style={{ fontWeight: 700, marginBottom: 12, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "#a8a29e" }}>Pages</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {links.map(l => <button key={l.id} onClick={() => handleFooterClick(l.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d6d3d1", fontSize: 13, textAlign: "left", padding: 0 }}>{l.label}</button>)}
+              {links.map(l => (
+                <button
+                  key={l.id}
+                  onClick={() => l.id === "calc" ? onCalcClick() : setPage(l.id)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#d6d3d1", fontSize: 13, textAlign: "left", padding: 0 }}
+                >
+                  {l.label}
+                </button>
+              ))}
             </div>
           </div>
           <div>
@@ -1034,7 +1021,7 @@ function FAQ() {
   );
 }
 
-function Tools({ setPage }) {
+function Tools({ setPage, onCalcClick }) {
   const tools = [
     { title: "Income Goal Calculator", desc: "Set your monthly income goal and get your exact selling price, daily orders needed, and starting capital.", icon: "🎯", status: "Live" },
     { title: "Profit Margin Calculator", desc: "Calculate your profit margin percentage from cost price and selling price.", icon: "📊", status: "Coming Soon" },
@@ -1059,7 +1046,7 @@ function Tools({ setPage }) {
               <span style={{ background: t.status === "Live" ? "#ecfdf5" : C.bgAlt, color: t.status === "Live" ? C.green : C.primary, fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, marginLeft: 8, flexShrink: 0 }}>{t.status}</span>
             </div>
             <p style={{ fontSize: 13, color: C.textMid, lineHeight: 1.7, marginBottom: 16 }}>{t.desc}</p>
-            <button onClick={() => t.status === "Live" && setPage("home")} style={{
+            <button onClick={() => t.status === "Live" && onCalcClick()} style={{
               padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, border: "none", cursor: t.status === "Live" ? "pointer" : "default",
               background: t.status === "Live" ? `linear-gradient(135deg, ${C.primary}, ${C.primaryLight})` : C.border,
               color: t.status === "Live" ? "#fff" : C.textLight,
@@ -1313,13 +1300,23 @@ function AdminDashboard({ setPage }) {
 export default function App() {
   const [page, setPage] = useState("home");
 
+  const goToCalculator = () => {
+    setPage("home");
+    setTimeout(() => {
+      document.getElementById("calc")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 120);
+  };
+
   const renderPage = () => {
     switch (page) {
       case "home": return <Home setPage={setPage} />;
       case "about": return <About />;
       case "blog": return <Blog />;
       case "faq": return <FAQ />;
-      case "tools": return <Tools setPage={setPage} />;
+      case "tools": return <Tools setPage={setPage} onCalcClick={goToCalculator} />;
       case "contact": return <Contact />;
       case "privacy": return <SimplePage title="Privacy Policy" sections={privacySections} />;
       case "terms": return <SimplePage title="Terms & Conditions" sections={termsSections} />;
@@ -1354,9 +1351,9 @@ export default function App() {
           .mob-right { display: none !important; }
         }
       `}</style>
-      <Navbar page={page} setPage={setPage} />
+      <Navbar page={page} setPage={setPage} onCalcClick={goToCalculator} />
       {renderPage()}
-      <Footer setPage={setPage} />
+      <Footer setPage={setPage} onCalcClick={goToCalculator} />
     </div>
   );
 }
