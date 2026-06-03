@@ -306,11 +306,28 @@ function Navbar({ page, setPage }) {
 
 function Footer({ setPage }) {
   const links = [
-    { id: "about", label: "About" }, { id: "blog", label: "Blog" },
-    { id: "faq", label: "FAQ" }, { id: "tools", label: "Tools" },
-    { id: "contact", label: "Contact" }, { id: "privacy", label: "Privacy Policy" },
-    { id: "terms", label: "Terms" }, { id: "disclaimer", label: "Disclaimer" },
+    { id: "calc", label: "Calculate Free" }, { id: "about", label: "About" },
+    { id: "blog", label: "Blog" }, { id: "faq", label: "FAQ" },
+    { id: "tools", label: "Tools" }, { id: "contact", label: "Contact" },
+    { id: "privacy", label: "Privacy Policy" }, { id: "terms", label: "Terms" },
+    { id: "disclaimer", label: "Disclaimer" },
   ];
+
+  const handleFooterNav = (id) => {
+    if (id === "calc") {
+      setPage("home");
+      setTimeout(() => {
+        document.getElementById("calc")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+      return;
+    }
+    setPage(id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
     <footer style={{ background: C.text, color: "#fff", padding: "40px 20px 24px", marginTop: 80 }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
@@ -336,7 +353,7 @@ function Footer({ setPage }) {
           <div>
             <p style={{ fontWeight: 700, marginBottom: 12, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "#a8a29e" }}>Pages</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {links.map(l => <button key={l.id} onClick={() => setPage(l.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d6d3d1", fontSize: 13, textAlign: "left", padding: 0 }}>{l.label}</button>)}
+              {links.map(l => <button key={l.id} onClick={() => handleFooterNav(l.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d6d3d1", fontSize: 13, textAlign: "left", padding: 0 }}>{l.label}</button>)}
             </div>
           </div>
           <div>
