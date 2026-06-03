@@ -91,6 +91,15 @@ function Navbar({ page, setPage }) {
     { id: "about", label: "About" },
   ];
 
+  const goToCalculator = () => {
+    setPage("home");
+    setMobileOpen(false);
+    setDotOpen(false);
+    setTimeout(() => {
+      document.getElementById("calc")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+  };
+
   return (
     <>
       <nav style={{ background: C.white, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
@@ -113,7 +122,7 @@ function Navbar({ page, setPage }) {
 
           {/* Desktop Nav - only show Calculate button + 3dot */}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }} className="nav-desktop">
-            <button onClick={() => setPage("home")} style={{
+            <button onClick={goToCalculator} style={{
               background: `linear-gradient(135deg, ${C.primary}, ${C.primaryLight})`,
               border: "none", borderRadius: 10, padding: "8px 16px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
             }}>Calculate Free →</button>
@@ -306,26 +315,22 @@ function Navbar({ page, setPage }) {
 
 function Footer({ setPage }) {
   const links = [
-    { id: "calc", label: "Calculate Free" }, { id: "about", label: "About" },
-    { id: "blog", label: "Blog" }, { id: "faq", label: "FAQ" },
-    { id: "tools", label: "Tools" }, { id: "contact", label: "Contact" },
-    { id: "privacy", label: "Privacy Policy" }, { id: "terms", label: "Terms" },
-    { id: "disclaimer", label: "Disclaimer" },
+    { id: "calc", label: "Calculate Free" },
+    { id: "about", label: "About" }, { id: "blog", label: "Blog" },
+    { id: "faq", label: "FAQ" }, { id: "tools", label: "Tools" },
+    { id: "contact", label: "Contact" }, { id: "privacy", label: "Privacy Policy" },
+    { id: "terms", label: "Terms" }, { id: "disclaimer", label: "Disclaimer" },
   ];
 
-  const handleFooterNav = (id) => {
+  const handleFooterClick = (id) => {
     if (id === "calc") {
       setPage("home");
       setTimeout(() => {
-        document.getElementById("calc")?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 100);
+        document.getElementById("calc")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
       return;
     }
     setPage(id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -353,7 +358,7 @@ function Footer({ setPage }) {
           <div>
             <p style={{ fontWeight: 700, marginBottom: 12, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "#a8a29e" }}>Pages</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {links.map(l => <button key={l.id} onClick={() => handleFooterNav(l.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d6d3d1", fontSize: 13, textAlign: "left", padding: 0 }}>{l.label}</button>)}
+              {links.map(l => <button key={l.id} onClick={() => handleFooterClick(l.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d6d3d1", fontSize: 13, textAlign: "left", padding: 0 }}>{l.label}</button>)}
             </div>
           </div>
           <div>
