@@ -661,6 +661,13 @@ function Home({ setPage }) {
     { name: "Anjali M.", role: "Flipkart Seller, Bengaluru", text: "Super easy to use. I calculate prices in 2 minutes now. Highly recommend!", avatar: "A" },
   ];
 
+  const goToCalculator = () => {
+    document.getElementById("calc")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
   return (
     <div>
       {/* Hero + Calculator */}
@@ -857,7 +864,7 @@ function Home({ setPage }) {
             </div>
           </div>
 
-          <button onClick={() => setPage("home")} style={{
+          <button onClick={goToCalculator} style={{
             background: "linear-gradient(135deg, #7c3aed, #a78bfa)", border: "none", borderRadius: 14,
             padding: "16px 40px", color: "#fff", fontSize: 16, fontWeight: 800, cursor: "pointer",
             boxShadow: "0 8px 32px rgba(124,58,237,0.5)", letterSpacing: "-0.01em",
