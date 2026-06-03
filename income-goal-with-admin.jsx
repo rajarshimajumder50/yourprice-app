@@ -657,7 +657,7 @@ function Home({ setPage }) {
       {/* Hero + Calculator */}
       <section style={{
         background: "linear-gradient(160deg, #0f0a1e 0%, #1e0a4a 40%, #2d1b69 70%, #1a0533 100%)",
-        padding: "48px 20px 0",
+        padding: "30px 20px 0",
         textAlign: "center",
         position: "relative",
         overflow: "hidden",
@@ -665,31 +665,31 @@ function Home({ setPage }) {
         {/* Background grid dots */}
         <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(rgba(167,139,250,0.15) 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
         <div style={{ maxWidth: 640, margin: "0 auto", position: "relative", zIndex: 1 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(167,139,250,0.4)", borderRadius: 100, padding: "6px 16px", marginBottom: 18 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(167,139,250,0.4)", borderRadius: 100, padding: "5px 14px", marginBottom: 10 }}>
             <span style={{ fontSize: 12 }}>✦</span>
-            <span style={{ color: "#c4b5fd", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 700 }}>Free Pricing Tool for Indian Sellers</span>
+            <span style={{ color: "#c4b5fd", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 700 }}>Free Pricing Tool for Indian Sellers</span>
           </div>
-          <h1 style={{ fontSize: "clamp(24px, 5vw, 40px)", fontWeight: 800, color: "#ffffff", lineHeight: 1.15, letterSpacing: "-0.02em", marginBottom: 14 }}>
+          <h1 style={{ fontSize: "clamp(23px, 4.5vw, 36px)", fontWeight: 800, color: "#ffffff", lineHeight: 1.12, letterSpacing: "-0.02em", marginBottom: 10 }}>
             Set Your Income Goal.<br />
             <span style={{ color: "#c4b5fd" }}>Get Your Selling Price.</span>
           </h1>
-          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.65)", lineHeight: 1.65, marginBottom: 28, maxWidth: 480, margin: "0 auto 28px" }}>
+          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", lineHeight: 1.55, maxWidth: 460, margin: "0 auto 18px" }}>
             India's only calculator that works backwards — enter your monthly target income and get your exact selling price, daily orders, and starting capital instantly.
           </p>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 12 }}>
-            <a href="#calc" style={{ textDecoration: "none", background: "linear-gradient(135deg, #7c3aed, #a78bfa)", color: "#fff", padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 700, boxShadow: "0 4px 20px rgba(124,58,237,0.5)" }}>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 8 }}>
+            <a href="#calc" style={{ textDecoration: "none", background: "linear-gradient(135deg, #7c3aed, #a78bfa)", color: "#fff", padding: "10px 22px", borderRadius: 12, fontSize: 14, fontWeight: 700, boxShadow: "0 4px 20px rgba(124,58,237,0.5)" }}>
               Calculate for Free →
             </a>
-            <button onClick={() => setPage("about")} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={() => setPage("about")} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "10px 22px", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
               Learn More
             </button>
           </div>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 32 }}>✓ Free forever &nbsp;·&nbsp; ✓ No signup &nbsp;·&nbsp; ✓ Works on mobile</p>
+          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 18 }}>✓ Free forever &nbsp;·&nbsp; ✓ No signup &nbsp;·&nbsp; ✓ Works on mobile</p>
         </div>
 
         {/* Calculator floating card */}
         <div id="calc" style={{ maxWidth: 520, margin: "0 auto", position: "relative", zIndex: 1 }}>
-          <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", padding: "8px 0 0", boxShadow: "0 -8px 40px rgba(0,0,0,0.3)" }} />
+          <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", padding: "6px 0 0", boxShadow: "0 -8px 40px rgba(0,0,0,0.3)" }} />
         </div>
         <div style={{ maxWidth: 520, margin: "0 auto", background: "#fff", position: "relative", zIndex: 1 }}>
           <Calculator />
