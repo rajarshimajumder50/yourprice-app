@@ -1,4 +1,7 @@
-import { useState, memo } from "react";  
+import { useState, memo, useEffect } from "react";
+import { auth, db } from "./src/firebase";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "firebase/auth";
+import { collection, deleteDoc, doc, getDocs, setDoc } from "firebase/firestore";
 
 const C = {
   primary: "#5b21b6", primaryLight: "#7c3aed", primaryDark: "#3b0764",
@@ -21,22 +24,8 @@ const defaultValues = {
   returnRate: "", gstRate: "", profitMargin: "", commission: "", otherExpenses: "",
 };
 
-// ===================== AUTH HELPERS =====================
-function getUsers() {
-  try { return JSON.parse(localStorage.getItem("yp_users") || "[]"); } catch { return []; }
-}
-function saveUsers(users) {
-  localStorage.setItem("yp_users", JSON.stringify(users));
-}
-function getLoggedIn() {
-  try { return JSON.parse(localStorage.getItem("yp_loggedin") || "null"); } catch { return null; }
-}
-function setLoggedIn(user) {
-  localStorage.setItem("yp_loggedin", JSON.stringify(user));
-}
-function clearLoggedIn() {
-  localStorage.removeItem("yp_loggedin");
-}
+// ===================== FIREBASE AUTH =====================
+// Firebase Authentication + Firestore users collection are used below.
 // =========================================================
 
 function Navbar({ page, setPage, onCalcClick }) {
@@ -44,37 +33,99 @@ function Navbar({ page, setPage, onCalcClick }) {
   const [dotOpen, setDotOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [authTab, setAuthTab] = useState("login"); // "login" | "signup"
-  const [loggedUser, setLoggedUser] = useState(() => getLoggedIn());
+  const [loggedUser, setLoggedUser] = useState(null);
   const [authForm, setAuthForm] = useState({ name: "", email: "", password: "" });
   const [authError, setAuthError] = useState("");
   const [authSuccess, setAuthSuccess] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
 
-  const handleAuth = () => {
-    setAuthError(""); setAuthSuccess("");
-    const { name, email, password } = authForm;
-    if (!email || !password) { setAuthError("Email ও Password দিন।"); return; }
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setLoggedUser({
+          uid: user.uid,
+          name: user.displayName || user.email?.split("@")[0] || "User",
+          email: user.email || "",
+        });
+      } else {
+        setLoggedUser(null);
+      }
+    });
 
-    if (authTab === "signup") {
-      if (!name) { setAuthError("নাম দিন।"); return; }
-      const users = getUsers();
-      if (users.find(u => u.email === email)) { setAuthError("এই email দিয়ে আগেই account আছে।"); return; }
-      const newUser = { name, email, password, joinedAt: new Date().toISOString() };
-      saveUsers([...users, newUser]);
-      setLoggedIn(newUser); setLoggedUser(newUser);
-      setAuthSuccess("Account তৈরি হয়েছে! 🎉"); 
-      setTimeout(() => setShowLogin(false), 1200);
-    } else {
-      const users = getUsers();
-      const user = users.find(u => u.email === email && u.password === password);
-      if (!user) { setAuthError("Email বা Password ভুল।"); return; }
-      setLoggedIn(user); setLoggedUser(user);
-      setAuthSuccess("Login সফল! ✓");
-      setTimeout(() => setShowLogin(false), 900);
+    return () => unsubscribe();
+  }, []);
+
+  const handleAuth = async () => {
+    if (authLoading) return;
+    setAuthError("");
+    setAuthSuccess("");
+
+    const name = authForm.name.trim();
+    const email = authForm.email.trim();
+    const password = authForm.password;
+
+    if (!email || !password) {
+      setAuthError("Email ও Password দিন।");
+      return;
+    }
+
+    try {
+      setAuthLoading(true);
+      if (authTab === "signup") {
+        if (!name) {
+          setAuthError("নাম দিন।");
+          return;
+        }
+
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        await updateProfile(user, { displayName: name });
+
+        const newUser = {
+          uid: user.uid,
+          name,
+          email: user.email || email,
+          joinedAt: new Date().toISOString(),
+          provider: "email-password",
+        };
+
+        await setDoc(doc(db, "users", user.uid), newUser);
+
+        setLoggedUser(newUser);
+        setAuthSuccess("Account তৈরি হয়েছে! 🎉");
+        setTimeout(() => setShowLogin(false), 1200);
+      } else {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        setLoggedUser({
+          uid: user.uid,
+          name: user.displayName || user.email?.split("@")[0] || "User",
+          email: user.email || email,
+        });
+
+        setAuthSuccess("Login সফল! ✓");
+        setTimeout(() => setShowLogin(false), 900);
+      }
+    } catch (error) {
+      const msg = error.code === "auth/email-already-in-use"
+        ? "এই email দিয়ে আগেই account আছে।"
+        : error.code === "auth/invalid-credential"
+          ? "Email বা Password ভুল।"
+          : error.code === "auth/weak-password"
+            ? "Password কমপক্ষে 6 character দিন।"
+            : error.message;
+      setAuthError(msg);
+    } finally {
+      setAuthLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    clearLoggedIn(); setLoggedUser(null); setDotOpen(false);
+  const handleLogout = async () => {
+    await signOut(auth);
+    setLoggedUser(null);
+    setDotOpen(false);
   };
 
   const openModal = (tab = "login") => {
@@ -293,8 +344,8 @@ function Navbar({ page, setPage, onCalcClick }) {
               {authError && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: C.red, fontWeight: 500 }}>❌ {authError}</div>}
               {authSuccess && <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: C.green, fontWeight: 500 }}>✅ {authSuccess}</div>}
 
-              <button onClick={handleAuth} style={{ background: `linear-gradient(135deg, ${C.primary}, ${C.primaryLight})`, border: "none", borderRadius: 12, padding: "14px", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 2, boxShadow: `0 4px 16px ${C.primary}40` }}>
-                {authTab === "login" ? "Login →" : "Sign Up করুন →"}
+              <button onClick={handleAuth} disabled={authLoading} style={{ background: `linear-gradient(135deg, ${C.primary}, ${C.primaryLight})`, border: "none", borderRadius: 12, padding: "14px", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 2, boxShadow: `0 4px 16px ${C.primary}40` }}>
+                {authLoading ? "Please wait..." : authTab === "login" ? "Login →" : "Sign Up করুন →"}
               </button>
             </div>
           </div>
@@ -1158,11 +1209,11 @@ function SimplePage({ title, sections }) {
 
 const privacySections = [
   { title: "Introduction", content: "This Privacy Policy explains how Income Goal Calculator collects, uses, and protects your information. By using this website, you agree to the practices described here." },
-  { title: "Information Collection", content: "Income Goal Calculator does not collect, store, or transmit any personal information. All calculations happen locally in your browser. No data is sent to any server." },
+  { title: "Information Collection", content: "If you sign up, we store your name, email, user ID, and signup date in Firebase to manage your account. Calculator inputs are not saved unless a future feature clearly says so." },
   { title: "Cookies Policy", content: "This website may use basic cookies for analytics (Google Analytics). These track anonymous usage data and do not identify you personally." },
   { title: "Google AdSense Policy", content: "This site displays ads served by Google AdSense. Google may use cookies to show relevant ads. You can opt out at google.com/ads/preferences." },
   { title: "Third-Party Services", content: "We use Google Analytics for anonymous traffic analysis and Google AdSense for advertising. Both have their own privacy policies." },
-  { title: "User Rights", content: "Since we don't collect personal data, there is nothing to delete or modify. Clear ad cookies from your browser settings anytime." },
+  { title: "User Rights", content: "You can request account data deletion by contacting us at rajarshimajumder50@gmail.com. You can also clear cookies and browser data anytime." },
   { title: "Contact", content: "For privacy concerns: rajarshimajumder50@gmail.com — Rajarshi Majumdar, Howrah, West Bengal, India." },
 ];
 
@@ -1193,15 +1244,33 @@ function AdminDashboard({ setPage }) {
   const [pwErr, setPwErr] = useState("");
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
+  const [adminErr, setAdminErr] = useState("");
+  const [adminLoading, setAdminLoading] = useState(false);
 
-  const handleAdminLogin = () => {
+  const fetchUsers = async () => {
+    setAdminErr("");
+    setAdminLoading(true);
+    try {
+      const snapshot = await getDocs(collection(db, "users"));
+      const firebaseUsers = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      firebaseUsers.sort((a, b) => new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0));
+      setUsers(firebaseUsers);
+    } catch (error) {
+      setAdminErr(error.message || "Users load করতে সমস্যা হয়েছে।");
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleAdminLogin = async () => {
     if (!ADMIN_PASSWORD) {
       setPwErr("Admin password is not configured. Add a non-empty VITE_ADMIN_PASSWORD in Vercel environment variables.");
       return;
     }
     if (pw.trim() === ADMIN_PASSWORD) {
+      setPwErr("");
       setAuthed(true);
-      setUsers(getUsers());
+      await fetchUsers();
     } else {
       setPwErr("Wrong password!");
     }
@@ -1212,10 +1281,13 @@ function AdminDashboard({ setPage }) {
     u.email?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const deleteUser = (email) => {
-    const updated = users.filter(u => u.email !== email);
-    saveUsers(updated);
-    setUsers(updated);
+  const deleteUser = async (uid) => {
+    try {
+      await deleteDoc(doc(db, "users", uid));
+      setUsers(prev => prev.filter(u => (u.uid || u.id) !== uid));
+    } catch (error) {
+      alert(error.message || "User delete করতে সমস্যা হয়েছে।");
+    }
   };
 
   if (!authed) {
@@ -1263,6 +1335,9 @@ function AdminDashboard({ setPage }) {
           style={{ width: "100%", padding: "13px 16px 13px 44px", border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
       </div>
 
+      {adminErr && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: C.red, borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, fontWeight: 600 }}>❌ {adminErr}</div>}
+      {adminLoading && <div style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.textMid, borderRadius: 12, padding: "12px 14px", marginBottom: 16, fontSize: 13, fontWeight: 600 }}>Loading users...</div>}
+
       {/* Users Table */}
       {filtered.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 20px", color: C.textMid, fontSize: 15 }}>
@@ -1275,7 +1350,7 @@ function AdminDashboard({ setPage }) {
             <span>#</span><span>নাম</span><span>Email</span><span>তারিখ</span>
           </div>
           {filtered.map((u, i) => (
-            <div key={u.email} style={{ display: "grid", gridTemplateColumns: "1fr 2fr 1.5fr 1fr", gap: 12, padding: "14px 16px", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, alignItems: "center" }}>
+            <div key={u.uid || u.id || u.email} style={{ display: "grid", gridTemplateColumns: "1fr 2fr 1.5fr 1fr", gap: 12, padding: "14px 16px", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, alignItems: "center" }}>
               <span style={{ fontSize: 13, color: C.textLight, fontWeight: 600 }}>#{i + 1}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg, ${C.primary}, ${C.primaryLight})`, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
@@ -1286,7 +1361,7 @@ function AdminDashboard({ setPage }) {
               <span style={{ fontSize: 13, color: C.textMid }}>{u.email}</span>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 11, color: C.textLight }}>{u.joinedAt ? new Date(u.joinedAt).toLocaleDateString("en-IN") : "—"}</span>
-                <button onClick={() => window.confirm(`Delete ${u.email}?`) && deleteUser(u.email)} style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "4px 8px", fontSize: 11, color: C.red, cursor: "pointer", fontWeight: 600 }}>🗑️</button>
+                <button onClick={() => window.confirm(`Delete ${u.email}? This removes the Firestore user record only.`) && deleteUser(u.uid || u.id)} style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "4px 8px", fontSize: 11, color: C.red, cursor: "pointer", fontWeight: 600 }}>🗑️</button>
               </div>
             </div>
           ))}
