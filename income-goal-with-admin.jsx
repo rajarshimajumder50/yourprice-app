@@ -1380,10 +1380,68 @@ function AdminDashboard({ setPage }) {
 // ===========================================================
 
 export default function App() {
-  const [page, setPage] = useState("home");
+  const pathToPage = () => {
+    const path = window.location.pathname;
+
+    if (path === "/about") return "about";
+    if (path === "/blog") return "blog";
+    if (path === "/faq") return "faq";
+    if (path === "/tools") return "tools";
+    if (path === "/contact") return "contact";
+    if (path === "/privacy-policy") return "privacy";
+    if (path === "/terms-and-conditions") return "terms";
+    if (path === "/disclaimer") return "disclaimer";
+    if (path === "/admin") return "admin";
+
+    return "home";
+  };
+
+  const pageToPath = (p) => {
+    const paths = {
+      home: "/",
+      about: "/about",
+      blog: "/blog",
+      faq: "/faq",
+      tools: "/tools",
+      contact: "/contact",
+      privacy: "/privacy-policy",
+      terms: "/terms-and-conditions",
+      disclaimer: "/disclaimer",
+      admin: "/admin",
+    };
+
+    return paths[p] || "/";
+  };
+
+  const [page, setPageState] = useState(pathToPage);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setPageState(pathToPage());
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const setPage = (p) => {
+    setPageState(p);
+    const newPath = pageToPath(p);
+
+    if (window.location.pathname !== newPath) {
+      window.history.pushState({}, "", newPath);
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const goToCalculator = () => {
-    setPage("home");
+    setPageState("home");
+
+    if (window.location.pathname !== "/") {
+      window.history.pushState({}, "", "/");
+    }
+
     setTimeout(() => {
       document.getElementById("calc")?.scrollIntoView({
         behavior: "smooth",
@@ -1404,16 +1462,7 @@ export default function App() {
       case "terms": return <SimplePage title="Terms & Conditions" sections={termsSections} />;
       case "disclaimer": return <SimplePage title="Disclaimer" sections={disclaimerSections} />;
       case "admin": return <AdminDashboard setPage={setPage} />;
-      default: return (
-        <div style={{ textAlign: "center", padding: "100px 20px" }}>
-          <div style={{ fontSize: 80, marginBottom: 20 }}>🔍</div>
-          <h1 style={{ fontSize: 48, fontWeight: 800, color: C.text, marginBottom: 12 }}>404</h1>
-          <p style={{ fontSize: 18, color: C.textMid, marginBottom: 32 }}>Page not found.</p>
-          <button onClick={() => setPage("home")} style={{ background: `linear-gradient(135deg, ${C.primary}, ${C.primaryLight})`, border: "none", color: "#fff", padding: "14px 32px", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-            Back to Home →
-          </button>
-        </div>
-      );
+      default: return <Home setPage={setPage} />;
     }
   };
 
@@ -1433,6 +1482,7 @@ export default function App() {
           .mob-right { display: none !important; }
         }
       `}</style>
+
       <Navbar page={page} setPage={setPage} onCalcClick={goToCalculator} />
       {renderPage()}
       <Footer setPage={setPage} onCalcClick={goToCalculator} />
