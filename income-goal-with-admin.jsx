@@ -440,6 +440,7 @@ function Calculator() {
   const [results, setResults] = useState(null);
   const [errors, setErrors] = useState({});
   const [selectedPlatform, setSelectedPlatform] = useState("");
+  const [calculating, setCalculating] = useState(false);
 
   const handleChange = (key, val) => {
     setValues(v => ({ ...v, [key]: val }));
@@ -490,10 +491,32 @@ function Calculator() {
     const unitsNeeded = v.targetIncome / profitPerOrder;
     const dailyOrders = Math.max(1, Math.round(unitsNeeded / 30));
     const minCapital = (v.productCost + v.packagingCost + v.shippingCharge) * dailyOrders * 7 + v.otherExpenses;
-    setResults({ finalCost, sellPrice, profitPerOrder, unitsNeeded: Math.ceil(unitsNeeded), dailyOrders, minCapital });
+
+    setCalculating(true);
+    setResults(null);
+
+    setTimeout(() => {
+      setResults({
+        finalCost,
+        sellPrice,
+        profitPerOrder,
+        unitsNeeded: Math.ceil(unitsNeeded),
+        dailyOrders,
+        minCapital,
+      });
+
+      setCalculating(false);
+
+      setTimeout(() => {
+        document.getElementById("results-section")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 120);
+    }, 700);
   };
 
-  const reset = () => { setValues(defaultValues); setResults(null); setErrors({}); setSelectedPlatform(""); };
+  const reset = () => { setValues(defaultValues); setResults(null); setErrors({}); setSelectedPlatform(""); setCalculating(false); };
   const fmt = n => "₹" + Math.round(n).toLocaleString("en-IN");
   const activePlatform = PLATFORMS.find(p => p.name === selectedPlatform);
   const buildShareText = () => {
@@ -510,7 +533,7 @@ ${platform}💰 Selling Price: ₹${results.sellPrice.toFixed(2)}
 📦 Orders: ${results.unitsNeeded}/month (${results.dailyOrders}/day)
 💰 Min Capital: ₹${results.minCapital.toFixed(0)}
 
-https://income-goal-calculator-nu.vercel.app`;
+https://yourpricetool.in`;
   };
 
   const inp = (err) => ({
@@ -527,6 +550,8 @@ https://income-goal-calculator-nu.vercel.app`;
       padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
       boxShadow: highlight ? `0 6px 24px rgba(124,58,237,0.25)` : "0 1px 4px rgba(0,0,0,0.05)",
       opacity: dimmed ? 0.6 : 1,
+      transform: highlight && !dimmed ? "scale(1.02)" : "scale(1)",
+      transition: "all 0.35s ease",
     }}>
       <span style={{ color: highlight ? "rgba(255,255,255,0.85)" : green ? "#065f46" : C.textMid, fontSize: 12, fontWeight: 500 }}>{label}</span>
       <span style={{ color: highlight ? "#fff" : green ? "#065f46" : dimmed ? C.textLight : C.text, fontSize: dimmed ? 18 : 20, fontWeight: 800, whiteSpace: "nowrap", letterSpacing: "-0.02em", fontStyle: dimmed ? "italic" : "normal" }}>{value}</span>
@@ -586,27 +611,86 @@ https://income-goal-calculator-nu.vercel.app`;
         </div>
       </div>
       <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
-        <button onClick={calculate} style={{
-          flex: 1, background: `linear-gradient(135deg, ${C.primary}, ${C.primaryLight})`, border: "none",
-          borderRadius: 12, padding: 16, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer",
-          boxShadow: `0 4px 20px ${C.primary}40`,
-        }}>Calculate →</button>
+        <button onClick={calculate} disabled={calculating} style={{
+          flex: 1,
+          background: calculating
+            ? "linear-gradient(135deg, #6b7280, #9ca3af)"
+            : `linear-gradient(135deg, ${C.primary}, ${C.primaryLight})`,
+          border: "none",
+          borderRadius: 12,
+          padding: 16,
+          color: "#fff",
+          fontSize: 15,
+          fontWeight: 700,
+          cursor: calculating ? "not-allowed" : "pointer",
+          boxShadow: calculating ? "0 4px 16px rgba(107,114,128,0.25)" : `0 4px 20px ${C.primary}40`,
+          opacity: calculating ? 0.9 : 1,
+          transition: "all 0.25s ease",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+        }}>
+          {calculating && (
+            <span style={{
+              width: 16,
+              height: 16,
+              border: "2px solid rgba(255,255,255,0.45)",
+              borderTopColor: "#fff",
+              borderRadius: "50%",
+              display: "inline-block",
+              animation: "spin 0.8s linear infinite",
+            }} />
+          )}
+          {calculating ? "Calculating..." : "Calculate →"}
+        </button>
         <button onClick={reset} style={{
           background: C.white, border: `1.5px solid ${C.border}`, borderRadius: 12,
           padding: "16px 20px", color: C.textMid, fontSize: 14, fontWeight: 600, cursor: "pointer",
         }}>Reset</button>
       </div>
       {/* Always visible results section */}
-      <div>
+      <div
+        id="results-section"
+        style={{
+          animation: results ? "fadeSlideUp 0.55s ease" : "none",
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
           <div style={{ height: 1, flex: 1, background: `linear-gradient(90deg, transparent, ${C.primaryLight}60)` }} />
           <span style={{ color: C.primary, fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 700 }}>
-            {results ? "Your Results" : "Output Preview"}
+            {calculating ? "Calculating..." : results ? "Your Results" : "Output Preview"}
           </span>
           <div style={{ height: 1, flex: 1, background: `linear-gradient(90deg, ${C.primaryLight}60, transparent)` }} />
         </div>
 
-        {!results && (
+        {calculating && (
+          <div style={{
+            background: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
+            border: `1px solid ${C.border}`,
+            borderRadius: 12,
+            padding: "12px 14px",
+            marginBottom: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            animation: "fadeSlideUp 0.35s ease",
+          }}>
+            <span style={{
+              width: 18,
+              height: 18,
+              border: `2px solid ${C.border}`,
+              borderTopColor: C.primary,
+              borderRadius: "50%",
+              display: "inline-block",
+              animation: "spin 0.8s linear infinite",
+              flexShrink: 0,
+            }} />
+            <p style={{ fontSize: 12, color: C.primary, fontWeight: 700 }}>Calculating your best selling price...</p>
+          </div>
+        )}
+
+        {!results && !calculating && (
           <div style={{ background: C.bgAlt, borderRadius: 12, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 14 }}>💡</span>
             <p style={{ fontSize: 12, color: C.textMid, fontWeight: 500 }}>Fill in your details above and click <strong>Calculate</strong> to see your results</p>
@@ -1474,6 +1558,14 @@ export default function App() {
         input::-webkit-inner-spin-button { -webkit-appearance: none; }
         input[type=number] { -moz-appearance: textfield; }
         button, input, textarea { font-family: 'Outfit', sans-serif; }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(18px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         @media (max-width: 700px) {
           .nav-desktop { display: none !important; }
           .mob-right { display: flex !important; }
